@@ -1,42 +1,31 @@
 import 'dart:io';
-import 'server.dart';
+import 'dart:convert' show utf8;
+import 'package:http/http.dart';
 
 void main() => ReverseProxy();
 
-class ReverseProxy extends Server {
-  ReverseProxy([super.port = 8000, super.route = "127.0.0.1", super.type = ""]) {
+class ReverseProxy {
+  int port;
+  String route;
+  ReverseProxy([this.route = "localhost", this.port = 8000]) {
     this.start();
   }
 
-  @override
   void start() async {
-    Socket socket = await Socket.connect(this.route, this.port);
-    socket.listen((msg) {
-      // first char of msg should be B or M
-      switch (msg.toString()[0]) {
-        case "B":
-          //send message
-          this.sendAndRecieve(msg.toString().substring(1), 8001);
-          break;
-        case "M":
-          this.sendAndRecieve(msg.toString().substring(1), 8002);
-          //send message
-          break;
-        default:
-          print("malformed message: $msg");
-          break;
-      }
-    }, onDone: () => print("message sent"), onError: (e) => print("error: $e"));
-  }
-
-  void sendAndRecieve(String msg, int port) async {
-    Socket socket = await Socket.connect(this.route, port);
-    socket.writeln(msg);
-    // Wait for ACK from Server
-    socket.listen((msg) {
-      print("message recieved: ${msg.toString()}");
-      // Send ACK to Client
-      socket.writeln("${msg.toString()}");
-    }, onDone: () => socket.destroy(), onError: (e) => print("error: $e"));
+    HttpServer server = await HttpServer.bind(this.route, this.port);
+    print("listening on: ${server.address.host}:${server.port}");
+    await for (HttpRequest req in server) {
+      // recieve message from client
+      String msg = await utf8.decodeStream(req);
+      print(msg);
+      // TODO -  is msg a book or movie?
+      // send message to server
+      var url = Uri.http("localhost:8001", "/");
+      Response res = await post(url, body: msg);
+      // send response to client
+      req.response.write(res.body);
+      //close request
+      req.response.close();
+    }
   }
 }

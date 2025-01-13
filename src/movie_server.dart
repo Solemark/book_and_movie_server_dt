@@ -1,9 +1,23 @@
-import 'server.dart';
+import 'dart:io';
+import 'dart:convert' show utf8;
 
 void main() => MovieServer();
 
-class MovieServer extends Server {
-  MovieServer([super.port = 8002, super.route = "127.0.0.1", super.type = "Movie"]) {
-    super.start();
+class MovieServer {
+  int port;
+  String route;
+  MovieServer([this.route = "localhost", this.port = 8002]) {
+    this.start();
+  }
+
+  void start() async {
+    HttpServer server = await HttpServer.bind(this.route, this.port);
+    print("listening on: ${server.address.host}:${server.port}");
+    await for (HttpRequest req in server) {
+      String msg = await utf8.decodeStream(req);
+      print(msg);
+      req.response.write("movie recieved");
+      req.response.close();
+    }
   }
 }
