@@ -15,17 +15,27 @@ class ReverseProxy {
     HttpServer server = await HttpServer.bind(this.route, this.port);
     print("listening on: ${server.address.host}:${server.port}");
     await for (HttpRequest req in server) {
-      // recieve message from client
-      String msg = await utf8.decodeStream(req);
-      print(msg);
-      // TODO -  is msg a book or movie?
-      // send message to server
-      var url = Uri.http("localhost:8001", "/");
-      Response res = await post(url, body: msg);
-      // send response to client
+      Response res = await this.parseMessage(req);
       req.response.write(res.body);
-      //close request
       req.response.close();
     }
+  }
+
+  Future<Response> parseMessage(HttpRequest req) async {
+    int port = 0;
+    String msg = await utf8.decodeStream(req);
+    print(msg);
+    switch (msg[0]) {
+      case 'B':
+        port = 8001;
+        break;
+      case 'M':
+        port = 8002;
+        break;
+      default:
+        throw Exception("unknown message type");
+    }
+    var url = Uri.http("localhost:$port", "/");
+    return post(url, body: msg);
   }
 }
